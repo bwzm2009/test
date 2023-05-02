@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 J.F.Dockes 
+/* Copyright (C) 2004 J.F.Dockes
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
  *   the Free Software Foundation; either version 2 of the License, or
@@ -17,18 +17,19 @@
 #include "rclconfig.h"
 #include "mimehandler.h"
 #include "internfile.h"
-
+#include "minwindef.h"
+#include "windef.h"
 #include <windows.h>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <cerrno>
 #include <cstring>
+#include <WinIoCtl.h>
 
 using namespace std;
 
 #ifdef _WIN32
-#include <windows.h>
 
 std::string read_symlink_windows(const std::string& path) {
     HANDLE hFile = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
