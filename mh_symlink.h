@@ -30,18 +30,34 @@ using namespace std;
 #ifdef _WIN32
 #include <windows.h>
 
-std::string read_symlink_windows(const char* path) {
-    wchar_t wTargetPath[MAX_PATH];
-    HANDLE hFile = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
-    if (GetFinalPathNameByHandleW(hFile, wTargetPath, MAX_PATH, VOLUME_NAME_DOS) > 0) {
-        char targetPath[MAX_PATH];
-        WideCharToMultiByte(CP_UTF8, 0, wTargetPath, -1, targetPath, MAX_PATH, NULL, NULL);
-        CloseHandle(hFile);
-        return std::string(targetPath);
+std::string read_symlink_windows(const std::string& path) {
+    HANDLE hFile = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        return "";
     }
+
+    BYTE buffer[MAXIMUM_REPARSE_DATA_BUFFER_SIZE] = { 0 };
+    DWORD dwBytesReturned = 0;
+    if (!DeviceIoControl(hFile, FSCTL_GET_REPARSE_POINT, NULL, 0, buffer, MAXIMUM_REPARSE_DATA_BUFFER_SIZE, &dwBytesReturned, NULL)) {
+        CloseHandle(hFile);
+        return "";
+    }
+
     CloseHandle(hFile);
-    return std::string();
+
+    REPARSE_GUID_DATA_BUFFER* pbuffer = reinterpret_cast<REPARSE_GUID_DATA_BUFFER*>(buffer);
+    if (pbuffer->ReparseTag != IO_REPARSE_TAG_SYMLINK) {
+        return "";
+    }
+
+    WCHAR *target = pbuffer->SymbolicLinkReparseBuffer.PathBuffer;
+    DWORD targetLength = pbuffer->SymbolicLinkReparseBuffer.SubstituteNameLength / sizeof(WCHAR);
+
+    std::wstring wTargetPath(target, targetLength);
+    std::string targetPath(wTargetPath.begin(), wTargetPath.end());
+    return targetPath;
 }
+
 #endif
 
 class MimeHandlerSymlink : public RecollFilter {
