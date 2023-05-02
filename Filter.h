@@ -52,7 +52,7 @@ public:
     /** Supported input types */
     typedef enum {DOCUMENT_DATA = 0, DOCUMENT_STRING, DOCUMENT_FILE_NAME, 
                   DOCUMENT_URI} DataInput;
-
+    
     virtual bool is_data_input_ok(DataInput input) const = 0;
 
     /* Properties to be set prior to actual operation */
@@ -60,7 +60,7 @@ public:
         // Source encoding to be used for reading/transcoding the
         // original data if there is no other way to find
         // (e.g. for text/plain files)
-        DEFAULT_CHARSET = 0,
+        DJN_DEFAULT_CHARSET = 0,
         // Either "view" or "index". Some implementations produce
         // slightly different data (e.g. avoiding repeating some
         // text in index mode)
@@ -167,7 +167,7 @@ public:
     }
     // Hack: is this the special version used for unknown types?
     virtual bool is_unknown() {
-        return false;
+        return m_mimeType.empty();
     }
 
 protected:
