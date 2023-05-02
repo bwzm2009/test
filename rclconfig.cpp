@@ -52,8 +52,12 @@
 #include "execmd.h"
 #include "md5.h"
 #include "idxdiags.h"
-
+#define MAXPATHLEN 260
 using namespace std;
+
+#ifdef WIN32
+extern const char *winACPName();
+#endif
 
 // Naming the directory for platform-specific default config files, overriding the top-level ones
 // E.g. /usr/share/recoll/examples/windows
