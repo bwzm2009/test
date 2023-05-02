@@ -53,7 +53,7 @@ class MimeHandlerSymlink : public RecollFilter {
 		if (m_fip->get_fn().empty()) {
 			return false;
 		}
-		std::string targetPath = read_symlink_windows(m_fip->get_fn());
+		std::string targetPath = read_symlink_windows(m_fip->get_fn().c_str());
 
 		if (targetPath.empty()) {
 			return false;
