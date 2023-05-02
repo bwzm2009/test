@@ -14,41 +14,62 @@
  *   Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-#ifndef _MH_SYMLINK_H_INCLUDED_
-#define _MH_SYMLINK_H_INCLUDED_
-
+#include "rclconfig.h"
 #include "mimehandler.h"
-#include <string>
+
 #include <windows.h>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <cerrno>
+#include <cstring>
+
+using namespace std;
 
 class MimeHandlerSymlink : public RecollFilter {
-public:
-    MimeHandlerSymlink(RclConfig *cnf, const std::string &id)
-        : RecollFilter(cnf, id) {}
-    virtual ~MimeHandlerSymlink() {}
-    virtual bool is_data_input_ok(DataInput input) const {
-        return input == DOCUMENT_FILE_NAME;
-    }
-    virtual bool next_document();
-    void clear() {}
- 
- protected:
-    std::string read_symlink_windows(const std::string &path) {
-        std::string targetPath(MAX_PATH, '\0');
-        DWORD nchars = GetFinalPathNameByHandleA(
-            CreateFileA(path.c_str(), GENERIC_READ,
-                        FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
-                        OPEN_EXISTING,
-                        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
-                        nullptr),
-            &targetPath[0], MAX_PATH, FILE_NAME_NORMALIZED);
-        if (nchars > 0) {
-            targetPath.resize(nchars);
-        } else {
-            targetPath.clear();
-        }
-        return targetPath;
-    }
+ public:
+    MimeHandlerSymlink(RclConfig *cnf, const string &id) : RecollFilter(cnf, id) {}
+
+	bool next_document() override {
+		if (m_fip->get_fn().empty()) {
+			return false;
+		}
+		std::string targetPath = read_symlink_windows(m_fip->get_fn());
+		if (targetPath.empty()) {
+			return false;
+		}
+		m_metaData["target"] = targetPath;
+		return true;
+	}
+
+    void clear_impl() override {}
 };
 
-#endif /* _MH_SYMLINK_H_INCLUDED_ */
+static std::string read_symlink_windows(const std::string &path) {
+    std::string result;
+    WCHAR buffer[MAX_PATH] = {0};
+    size_t len = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
+    std::wstring wpath(len, 0);
+    MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, &wpath[0], len);
+    DWORD attributes = GetFileAttributesW(wpath.c_str());
+    if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+        HANDLE handle = CreateFileW(wpath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+        if (handle != INVALID_HANDLE_VALUE) {
+            DWORD resultLength = 0;
+            WCHAR buffer[REPARSE_GUID_DATA_BUFFER_HEADER_SIZE + MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
+            PREPARSE_GUID_DATA_BUFFER pbuffer = (PREPARSE_GUID_DATA_BUFFER)buffer;
+            memset(pbuffer, 0, sizeof(buffer));
+            if (DeviceIoControl(handle, FSCTL_GET_REPARSE_POINT, nullptr, 0, pbuffer, sizeof(buffer), &resultLength, nullptr)) {
+                WCHAR *target = pbuffer->SymbolicLinkReparseBuffer.PathBuffer;
+                DWORD targetLength = pbuffer->SymbolicLinkReparseBuffer.SubstituteNameLength / sizeof(WCHAR);
+                target[targetLength] = '\0';
+                int utf8_len = WideCharToMultiByte(CP_UTF8, 0, target, -1, nullptr, 0, nullptr, nullptr);
+                std::string utf8_target(utf8_len, 0);
+                WideCharToMultiByte(CP_UTF8, 0, target, -1, &utf8_target[0], utf8_len, nullptr, nullptr);
+                result = utf8_target;
+            }
+            CloseHandle(handle);
+        }
+    }
+    return result;
+}
