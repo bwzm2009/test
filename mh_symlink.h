@@ -33,10 +33,11 @@ class MimeHandlerSymlink : public RecollFilter {
 	FileInterner *m_fip{nullptr};
 	
 	bool next_document() override {
-		if (m_fip->get_fn().empty()) {
-			return false;
+		if (m_fip->m_fn.empty()) {
+		return false;
 		}
-		std::string targetPath = read_symlink_windows(m_fip->get_fn());
+		std::string targetPath = read_symlink_windows(m_fip->m_fn);
+
 		if (targetPath.empty()) {
 			return false;
 		}
