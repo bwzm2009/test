@@ -221,13 +221,13 @@ RclConfig::RclConfig(const string *argcnf)
     zeroMe();
 
     if (o_origcwd.empty()) {
-        char buf[MAX_PATH];
-		if (GetCurrentDirectory(MAX_PATH, buf)) {
-			o_origcwd = std::string(wcstombs(nullptr, buf, 0));
+        char temp_buf[MAX_PATH];
+		if (GetCurrentDirectoryW(MAX_PATH, buf)) {
+			o_origcwd = std::string(std::strcpy(temp_buf, reinterpret_cast<const char*>(wcstombs(nullptr, buf, 0))));
 		} else {
-            fprintf(stderr, "recollxx: can't retrieve current working "
-                    "directory: relative path translations will fail\n");
-        }
+			throw std::runtime_error("Failed to get current directory");
+		}
+
     }
 
     // Compute our data dir name, typically /usr/local/share/recoll
