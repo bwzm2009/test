@@ -81,6 +81,16 @@ bool o_uptodate_test_use_mtime = false;
 
 bool o_expand_phrases = false;
 
+#ifdef _WIN32
+const char* winACPName() {
+    static char acpName[32];
+    int acp = GetACP();
+    sprintf_s(acpName, sizeof(acpName), "CP%d", acp);
+    return acpName;
+}
+#endif
+
+
 string RclConfig::o_localecharset; 
 string RclConfig::o_origcwd; 
 
