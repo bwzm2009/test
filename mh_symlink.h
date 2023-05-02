@@ -16,6 +16,7 @@
  */
 #include "rclconfig.h"
 #include "mimehandler.h"
+#include "fileinterner.h"
 
 #include <windows.h>
 #include <cstdio>
@@ -29,7 +30,8 @@ using namespace std;
 class MimeHandlerSymlink : public RecollFilter {
  public:
     MimeHandlerSymlink(RclConfig *cnf, const string &id) : RecollFilter(cnf, id) {}
-
+	FileInterner *m_fip{nullptr};
+	
 	bool next_document() override {
 		if (m_fip->get_fn().empty()) {
 			return false;
