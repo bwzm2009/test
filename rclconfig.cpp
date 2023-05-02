@@ -221,9 +221,10 @@ RclConfig::RclConfig(const string *argcnf)
     zeroMe();
 
     if (o_origcwd.empty()) {
-        char buf[MAXPATHLEN];
-        if (getcwd(buf, MAXPATHLEN)) {
-            o_origcwd = string(buf);
+        char buf_char[MAX_PATH];
+		if (GetCurrentDirectoryW(MAX_PATH, buf)) {
+            wcstombs(buf_char, buf, MAX_PATH);
+			o_origcwd = string(buf_char);
         } else {
             fprintf(stderr, "recollxx: can't retrieve current working "
                     "directory: relative path translations will fail\n");
