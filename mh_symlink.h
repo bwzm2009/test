@@ -31,8 +31,7 @@ public:
     }
     virtual bool next_document();
     void clear() {}
-    ...
-
+ 
  protected:
     std::string read_symlink_windows(const std::string &path) {
         std::string targetPath(MAX_PATH, '\0');
