@@ -16,7 +16,7 @@
  */
 #include "rclconfig.h"
 #include "mimehandler.h"
-#include "fileinterner.h"
+#include "internfile.h"
 
 #include <windows.h>
 #include <cstdio>
