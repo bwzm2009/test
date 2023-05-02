@@ -25,7 +25,7 @@
 #include <string>
 #include <cerrno>
 #include <cstring>
-#include <WinIoCtl.h>
+#include <winioctl.h>
 
 using namespace std;
 
@@ -46,7 +46,7 @@ std::string read_symlink_windows(const std::string& path) {
 
     CloseHandle(hFile);
 
-    REPARSE_GUID_DATA_BUFFER* pbuffer = reinterpret_cast<REPARSE_GUID_DATA_BUFFER*>(buffer);
+    REPARSE_DATA_BUFFER* pbuffer = reinterpret_cast<REPARSE_DATA_BUFFER*>(buffer);
     if (pbuffer->ReparseTag != IO_REPARSE_TAG_SYMLINK) {
         return "";
     }
@@ -93,8 +93,8 @@ static std::string read_symlink_windows(const std::string &path) {
         HANDLE handle = CreateFileW(wpath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr);
         if (handle != INVALID_HANDLE_VALUE) {
             DWORD resultLength = 0;
-            WCHAR buffer[REPARSE_GUID_DATA_BUFFER_HEADER_SIZE + MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
-            PREPARSE_GUID_DATA_BUFFER pbuffer = (PREPARSE_GUID_DATA_BUFFER)buffer;
+            WCHAR buffer[REPARSE_DATA_BUFFER_HEADER_SIZE + MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
+            PREPARSE_DATA_BUFFER pbuffer = (PREPARSE_DATA_BUFFER)buffer;
             memset(pbuffer, 0, sizeof(buffer));
             if (DeviceIoControl(handle, FSCTL_GET_REPARSE_POINT, nullptr, 0, pbuffer, sizeof(buffer), &resultLength, nullptr)) {
                 WCHAR *target = pbuffer->SymbolicLinkReparseBuffer.PathBuffer;
