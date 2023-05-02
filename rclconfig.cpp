@@ -52,7 +52,6 @@
 #include "execmd.h"
 #include "md5.h"
 #include "idxdiags.h"
-#define MAXPATHLEN 4096
 
 using namespace std;
 
@@ -80,16 +79,6 @@ bool o_index_storedoctext = true;
 bool o_uptodate_test_use_mtime = false;
 
 bool o_expand_phrases = false;
-
-#ifdef _WIN32
-const char* winACPName() {
-    static char acpName[32];
-    int acp = GetACP();
-    sprintf_s(acpName, sizeof(acpName), "CP%d", acp);
-    return acpName;
-}
-#endif
-
 
 string RclConfig::o_localecharset; 
 string RclConfig::o_origcwd; 
@@ -283,62 +272,30 @@ RclConfig::RclConfig(const string *argcnf)
     // from recollinit
     if (o_localecharset.empty()) {
 #ifdef _WIN32
-const char* winACPName() {
-    static char acpName[32];
-    int acp = GetACP();
-    sprintf_s(acpName, sizeof(acpName), "CP%d", acp);
-    return acpName;
-}
-#endif
-
-RclConfig::RclConfig(const std::string *confpath) {
-    // get config file name, eventually from environment variable
-    char *c;
-    if (confpath && confpath->length() > 0) {
-        LOGDEB1("RclConfig::RclConfig: using user config path " << *confpath << "\n");
-        c = strdup(confpath->c_str());
-    } else {
-        c = getenv("RECOLL_CONF_PATH");
-        if (c) {
-            LOGDEB1("RclConfig::RclConfig: using env var config path " << c << "\n");
-            c = strdup(c);
-        } else {
-            c = strdup(RECOLL_CONF_PATH_DEFAULT);
-            LOGDEB1("RclConfig::RclConfig: using compiled-in config path " << c << "\n");
-        }
-    }
-
-    o_filename = c;
-    free(c);
-
-#ifdef _WIN32
-    o_localecharset = winACPName();
+        o_localecharset = winACPName();
 #elif defined(__APPLE__)
-    o_localecharset = "UTF-8";
+        o_localecharset = "UTF-8";
 #else
-    const char *cp;
-    cp = nl_langinfo(CODESET);
-    // We don't keep US-ASCII. It's better to use a superset
-    // Ie: me have a C locale and some french file names, and I
-    // can't imagine a version of iconv that couldn't translate
-    // from iso8859?
-    // The 646 thing is for solaris. 
-    if (cp && *cp && strcmp(cp, "US-ASCII") 
+        const char *cp;
+        cp = nl_langinfo(CODESET);
+        // We don't keep US-ASCII. It's better to use a superset
+        // Ie: me have a C locale and some french file names, and I
+        // can't imagine a version of iconv that couldn't translate
+        // from iso8859?
+        // The 646 thing is for solaris. 
+        if (cp && *cp && strcmp(cp, "US-ASCII") 
 #ifdef sun
-        && strcmp(cp, "646")
+            && strcmp(cp, "646")
 #endif
-        ) {
-        o_localecharset = string(cp);
-    } else {
-        // Use cp1252 instead of iso-8859-1, it's a superset.
-        o_localecharset = string(cstr_cp1252);
+            ) {
+            o_localecharset = string(cp);
+        } else {
+            // Use cp1252 instead of iso-8859-1, it's a superset.
+            o_localecharset = string(cstr_cp1252);
+        }
+#endif
+        LOGDEB1("RclConfig::getDefCharset: localecharset ["  << o_localecharset << "]\n");
     }
-#endif
-
-    LOGDEB1("RclConfig::getDefCharset: localecharset [" << o_localecharset << "]\n");
-}
-
-
 
     const char *cp;
 
