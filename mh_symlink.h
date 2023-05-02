@@ -14,7 +14,7 @@ class MimeHandlerSymlink : public RecollFilter {
         return input == DOCUMENT_FILE_NAME;
     }
     virtual bool next_document();
-    virtual void clear() {}
+    void clear() {}
 
  protected:
     std::string read_symlink_windows(const std::string &path) {
