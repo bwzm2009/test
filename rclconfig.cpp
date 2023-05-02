@@ -44,7 +44,7 @@
 #include <shlwapi.h>
 #include <windows.h>
 #pragma comment(lib, "shlwapi.lib")
-
+#endif
 #include "cstr.h"
 #include "pathut.h"
 #include "rclutil.h"
@@ -226,8 +226,9 @@ RclConfig::RclConfig(const string *argcnf)
     zeroMe();
 
     if (o_origcwd.empty()) {
-        char temp_buf[MAX_PATH];
+        wchar_t buf[MAX_PATH];
 		if (GetCurrentDirectoryW(MAX_PATH, buf)) {
+			char temp_buf[MAX_PATH];
 			o_origcwd = std::string(std::strcpy(temp_buf, reinterpret_cast<const char*>(wcstombs(nullptr, buf, 0))));
 		} else {
 			throw std::runtime_error("Failed to get current directory");
