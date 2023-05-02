@@ -40,6 +40,11 @@
 #include <unordered_map>
 #include <iterator>
 
+#ifdef _WIN32
+#include <shlwapi.h>
+#include <windows.h>
+#pragma comment(lib, "shlwapi.lib")
+
 #include "cstr.h"
 #include "pathut.h"
 #include "rclutil.h"
