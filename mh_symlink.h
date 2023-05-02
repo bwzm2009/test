@@ -26,38 +26,68 @@
 #include <cerrno>
 #include <cstring>
 #include <winioctl.h>
+#ifndef REPARSE_DATA_BUFFER_HEADER_SIZE
+#pragma pack(push, 1)
+typedef struct _REPARSE_DATA_BUFFER {
+  ULONG  ReparseTag;
+  USHORT ReparseDataLength;
+  USHORT Reserved;
+  union {
+    struct {
+      USHORT SubstituteNameOffset;
+      USHORT SubstituteNameLength;
+      USHORT PrintNameOffset;
+      USHORT PrintNameLength;
+      ULONG Flags;
+      WCHAR PathBuffer[1];
+    } SymbolicLinkReparseBuffer;
+    struct {
+      USHORT SubstituteNameOffset;
+      USHORT SubstituteNameLength;
+      USHORT PrintNameOffset;
+      USHORT PrintNameLength;
+      WCHAR PathBuffer[1];
+    } MountPointReparseBuffer;
+    struct {
+      UCHAR DataBuffer[1];
+    } GenericReparseBuffer;
+  };
+} REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
+#pragma pack(pop)
+#endif
 
 using namespace std;
 
 #ifdef _WIN32
-
-std::string read_symlink_windows(const std::string& path) {
-    HANDLE hFile = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
-    if (hFile == INVALID_HANDLE_VALUE) {
-        return "";
+static std::string read_symlink_windows(const std::string &path) {
+    std::string result;
+    WCHAR buffer[MAX_PATH] = {0};
+    size_t len = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
+    std::wstring wpath(len, 0);
+    MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, &wpath[0], len);
+    DWORD attributes = GetFileAttributesW(wpath.c_str());
+    if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+        HANDLE handle = CreateFileW(wpath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+        if (handle != INVALID_HANDLE_VALUE) {
+            DWORD resultLength = 0;
+            WCHAR buffer[sizeof(REPARSE_DATA_BUFFER) + MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
+            PREPARSE_DATA_BUFFER pbuffer = (PREPARSE_DATA_BUFFER)buffer;
+            memset(pbuffer, 0, sizeof(buffer));
+            if (DeviceIoControl(handle, FSCTL_GET_REPARSE_POINT, nullptr, 0, pbuffer, sizeof(buffer), &resultLength, nullptr)) {
+                WCHAR *target = pbuffer->SymbolicLinkReparseBuffer.PathBuffer;
+                DWORD targetLength = pbuffer->SymbolicLinkReparseBuffer.SubstituteNameLength / sizeof(WCHAR);
+                target[targetLength] = '\0';
+                int utf8_len = WideCharToMultiByte(CP_UTF8, 0, target, -1, nullptr, 0, nullptr, nullptr);
+                std::string utf8_target(utf8_len, 0);
+                WideCharToMultiByte(CP_UTF8, 0, target, -1, &utf8_target[0], utf8_len, nullptr, nullptr);
+                result = utf8_target;
+            }
+            CloseHandle(handle);
+        }
     }
-
-    BYTE buffer[MAXIMUM_REPARSE_DATA_BUFFER_SIZE] = { 0 };
-    DWORD dwBytesReturned = 0;
-    if (!DeviceIoControl(hFile, FSCTL_GET_REPARSE_POINT, NULL, 0, buffer, MAXIMUM_REPARSE_DATA_BUFFER_SIZE, &dwBytesReturned, NULL)) {
-        CloseHandle(hFile);
-        return "";
-    }
-
-    CloseHandle(hFile);
-
-    REPARSE_DATA_BUFFER* pbuffer = reinterpret_cast<REPARSE_DATA_BUFFER*>(buffer);
-    if (pbuffer->ReparseTag != IO_REPARSE_TAG_SYMLINK) {
-        return "";
-    }
-
-    WCHAR *target = pbuffer->SymbolicLinkReparseBuffer.PathBuffer;
-    DWORD targetLength = pbuffer->SymbolicLinkReparseBuffer.SubstituteNameLength / sizeof(WCHAR);
-
-    std::wstring wTargetPath(target, targetLength);
-    std::string targetPath(wTargetPath.begin(), wTargetPath.end());
-    return targetPath;
+    return result;
 }
+
 
 #endif
 
@@ -81,32 +111,3 @@ class MimeHandlerSymlink : public RecollFilter {
 
     void clear_impl() override {}
 };
-
-static std::string read_symlink_windows(const std::string &path) {
-    std::string result;
-    WCHAR buffer[MAX_PATH] = {0};
-    size_t len = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
-    std::wstring wpath(len, 0);
-    MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, &wpath[0], len);
-    DWORD attributes = GetFileAttributesW(wpath.c_str());
-    if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
-        HANDLE handle = CreateFileW(wpath.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr);
-        if (handle != INVALID_HANDLE_VALUE) {
-            DWORD resultLength = 0;
-            WCHAR buffer[REPARSE_DATA_BUFFER_HEADER_SIZE + MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
-            PREPARSE_DATA_BUFFER pbuffer = (PREPARSE_DATA_BUFFER)buffer;
-            memset(pbuffer, 0, sizeof(buffer));
-            if (DeviceIoControl(handle, FSCTL_GET_REPARSE_POINT, nullptr, 0, pbuffer, sizeof(buffer), &resultLength, nullptr)) {
-                WCHAR *target = pbuffer->SymbolicLinkReparseBuffer.PathBuffer;
-                DWORD targetLength = pbuffer->SymbolicLinkReparseBuffer.SubstituteNameLength / sizeof(WCHAR);
-                target[targetLength] = '\0';
-                int utf8_len = WideCharToMultiByte(CP_UTF8, 0, target, -1, nullptr, 0, nullptr, nullptr);
-                std::string utf8_target(utf8_len, 0);
-                WideCharToMultiByte(CP_UTF8, 0, target, -1, &utf8_target[0], utf8_len, nullptr, nullptr);
-                result = utf8_target;
-            }
-            CloseHandle(handle);
-        }
-    }
-    return result;
-}
