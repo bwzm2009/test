@@ -14,8 +14,10 @@
  *   Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
-
+#include <windows.h>
 #include "autoconfig.h"
+#include <unistd.h>
+#include <limits.h>
 
 #include <stdio.h>
 #include <errno.h>
@@ -24,7 +26,6 @@
 #include <sys/param.h>
 #else
 #endif
-#include <limits.h>
 #include "safesysstat.h"
 #include "safeunistd.h"
 #ifdef __FreeBSD__
