@@ -221,11 +221,10 @@ RclConfig::RclConfig(const string *argcnf)
     zeroMe();
 
     if (o_origcwd.empty()) {
-        char buf_char[MAX_PATH];
-		if (GetCurrentDirectoryW(MAX_PATH, buf)) {
-            wcstombs(buf_char, buf, MAX_PATH);
-			o_origcwd = string(buf_char);
-        } else {
+        char buf[MAX_PATH];
+		if (GetCurrentDirectory(MAX_PATH, buf)) {
+			o_origcwd = std::string(wcstombs(nullptr, buf, 0));
+		} else {
             fprintf(stderr, "recollxx: can't retrieve current working "
                     "directory: relative path translations will fail\n");
         }
