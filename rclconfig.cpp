@@ -228,12 +228,16 @@ RclConfig::RclConfig(const string *argcnf)
     if (o_origcwd.empty()) {
         wchar_t buf[MAX_PATH];
 		if (GetCurrentDirectoryW(MAX_PATH, buf)) {
-			char temp_buf[MAX_PATH];
-			o_origcwd = std::string(std::strcpy(temp_buf, reinterpret_cast<const char*>(wcstombs(nullptr, buf, 0))));
+			size_t len = wcstombs(nullptr, buf, 0);
+			if (len != static_cast<size_t>(-1)) {
+				char *temp_buf = new char[len + 1];
+				wcstombs(temp_buf, buf, len + 1);
+				o_origcwd = std::string(temp_buf);
+				delete[] temp_buf;
+			}
 		} else {
 			throw std::runtime_error("Failed to get current directory");
 		}
-
     }
 
     // Compute our data dir name, typically /usr/local/share/recoll
