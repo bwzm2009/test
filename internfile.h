@@ -93,9 +93,13 @@ public:
     /** Return values for internfile() */
     enum Status {FIError, FIDone, FIAgain};
 
+	const std::string& get_fn() const {
+        return m_fn;
+    }
+
     /** Constructors take the initial step to preprocess the data object and
      *  create the top filter */
-
+	
     /**
      * Identify and possibly decompress file, and create the top filter.
      * - The mtype parameter is not always set (it is when the object is
